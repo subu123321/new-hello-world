@@ -1,0 +1,132 @@
+# Azure DevOps multi-stage pipeline
+#   Stage 1 Build : mvn clean package (tests run) -> publishes webapp.war
+#   Stage 2 Docker: builds the Tomcat image from that WAR, optionally pushes it to a registry
+#
+# Run manually and tick "Push image" once you have a Docker Registry service connection.
+
+trigger:
+  branches:
+    include:
+      - master          # change to "main" if that is your default branch
+  paths:
+    exclude:
+      - '*.md'
+
+pr:
+  branches:
+    include:
+      - master
+
+parameters:
+  - name: pushImage
+    displayName: 'Push image to registry'
+    type: boolean
+    default: false
+  - name: registryServiceConnection
+    displayName: 'Docker Registry service connection name (needed only when pushing)'
+    type: string
+    default: 'my-registry-connection'
+
+variables:
+  imageName: 'hello-world-webapp'
+  MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
+  MAVEN_OPTS: '-Dmaven.repo.local=$(MAVEN_CACHE_FOLDER)'
+
+stages:
+  # ---------------------------------------------------------------------------
+  - stage: Build
+    displayName: 'Build & Test'
+    jobs:
+      - job: Maven
+        displayName: 'Maven clean package'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: Cache@2
+            displayName: 'Cache Maven repository'
+            inputs:
+              key: 'maven | "$(Agent.OS)" | **/pom.xml'
+              restoreKeys: |
+                maven | "$(Agent.OS)"
+              path: $(MAVEN_CACHE_FOLDER)
+
+          - task: Maven@3
+            displayName: 'mvn clean package'
+            inputs:
+              mavenPomFile: 'pom.xml'
+              goals: 'clean package'
+              options: '-B -ntp'
+              mavenOptions: '-Xmx3072m'
+              javaHomeOption: 'JDKVersion'
+              jdkVersionOption: '1.17'
+              jdkArchitectureOption: 'x64'
+              publishJUnitResults: true
+              testResultsFiles: '**/surefire-reports/TEST-*.xml'
+
+          # SonarQube (optional). Install the SonarQube extension + service connection, then:
+          #   1) add SonarQubePrepare BEFORE the Maven task
+          #   2) add  sonarQubeRunAnalysis: true  to the Maven@3 inputs above
+          #   3) add SonarQubePublish AFTER the Maven task
+          # - task: SonarQubePrepare@5
+          #   inputs:
+          #     SonarQube: 'my-sonarqube-connection'
+          #     scannerMode: 'Other'
+          # - task: SonarQubePublish@5
+          #   inputs:
+          #     pollingTimeoutSec: '300'
+
+          - task: PublishPipelineArtifact@1
+            displayName: 'Publish WAR'
+            inputs:
+              targetPath: '$(System.DefaultWorkingDirectory)/webapp/target/webapp.war'
+              artifact: 'war'
+              publishLocation: 'pipeline'
+
+  # ---------------------------------------------------------------------------
+  - stage: Docker
+    displayName: 'Docker image'
+    dependsOn: Build
+    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+    jobs:
+      - job: Image
+        displayName: 'Build Tomcat image'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - checkout: self
+
+          - download: current
+            artifact: war
+            displayName: 'Download WAR'
+
+          # Dockerfile.ci expects the WAR at webapp/target/webapp.war
+          - script: |
+              mkdir -p webapp/target
+              cp "$(Pipeline.Workspace)/war/webapp.war" webapp/target/webapp.war
+              ls -l webapp/target
+            displayName: 'Place WAR for Docker build'
+
+          - ${{ if eq(parameters.pushImage, true) }}:
+              - task: Docker@2
+                displayName: 'Docker build and push'
+                inputs:
+                  command: 'buildAndPush'
+                  containerRegistry: '${{ parameters.registryServiceConnection }}'
+                  repository: '$(imageName)'
+                  Dockerfile: 'Dockerfile.ci'
+                  buildContext: '$(Build.SourcesDirectory)'
+                  tags: |
+                    $(Build.BuildId)
+                    latest
+
+          - ${{ if eq(parameters.pushImage, false) }}:
+              - task: Docker@2
+                displayName: 'Docker build (no push)'
+                inputs:
+                  command: 'build'
+                  repository: '$(imageName)'
+                  Dockerfile: 'Dockerfile.ci'
+                  buildContext: '$(Build.SourcesDirectory)'
+                  tags: |
+                    $(Build.BuildId)
+                    latest

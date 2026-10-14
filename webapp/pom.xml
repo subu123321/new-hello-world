@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.example.maven-project</groupId>
+    <artifactId>maven-project</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>webapp</artifactId>
+  <packaging>war</packaging>
+  <name>Webapp</name>
+  <description>Web application packaged as a WAR (deployed to Tomcat).</description>
+
+  <dependencies>
+    <!-- Our own library: ends up in WEB-INF/lib/server-1.0-SNAPSHOT.jar -->
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>server</artifactId>
+    </dependency>
+
+    <!-- Supplied by Tomcat, so NOT packaged into the WAR -->
+    <dependency>
+      <groupId>javax.servlet</groupId>
+      <artifactId>javax.servlet-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>javax.servlet.jsp</groupId>
+      <artifactId>javax.servlet.jsp-api</artifactId>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <!-- Produces a predictable file name: webapp/target/webapp.war -->
+    <finalName>webapp</finalName>
+
+    <plugins>
+      <plugin>
+        <artifactId>maven-war-plugin</artifactId>
+        <configuration>
+          <failOnMissingWebXml>false</failOnMissingWebXml>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

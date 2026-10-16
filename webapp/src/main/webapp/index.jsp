@@ -14,14 +14,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Jenkins Docker DevOps Demo</title>
+  <title>Docker DevOps Demo</title>
 </head>
 <body>
-  <h1><%= greeting %> Welcome to K21 Academy Subramani's Jenkins Docker DevOps Demo !!</h1>
-  <h2>Please subscribe to K21 Academy Channel
-    <a href="https://www.youtube.com/user/k21technologies">https://www.youtube.com/user/k21technologies</a></h2>
-  <h2>Thanks for following us on
-    <a href="https://k21academy.com/my-courses/">https://k21academy.com/my-courses/</a></h2>
+  <h1><%= greeting %> Welcome to Subramani's Jenkins Docker DevOps Demo !!</h1>
   <h1>THIS IS THE DEMO OF JENKINS WITH GITHUB AND TOMCAT SERVER IN THIS PARTICULAR DEMO</h1>
   <h2>TODAY'S DATE IS <%= today %></h2>
 </body>
